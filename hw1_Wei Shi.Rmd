@@ -1,0 +1,161 @@
+---
+title: "Homework Assignment 1: Jump Start with R Markdown"
+# subtitle: "possible subtitle goes here"
+author:
+  - Wei Shi
+#date: "`r format(Sys.time(), '%d %B %Y')`"
+documentclass: article
+papersize: letter
+fontsize: 11pt
+bibliography: template.bib
+biblio-style: datalab
+#keywords: Template, R Markdown, bookdown, Data Lab
+# keywords set in YAML header here only go to the properties of the PDF output
+# the keywords that appear in PDF output are set in latex/before_body.tex
+output:
+  bookdown::pdf_document2
+  bookdown::html_document2
+abstract: |
+    In this report, we demonstrate the approximation of the standard Normal distribution 
+    function using the Monte Carlo methods.
+---
+
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+## some utility functions, see the source code for details
+source("utils_template.R")
+
+## specify the packages needed
+pkgs <- c("splines2", "DT", "webshot", "leaflet")
+need.packages(pkgs)
+
+## external data can be read in by regular functions,
+## such as read.table or load
+
+## get output format in case something needs extra effort
+outFormat <- knitr::opts_knit$get("rmarkdown.pandoc.to")
+## "latex" or "html"
+
+## for latex and html output
+isHtml <- identical(outFormat, "html")
+isLatex <- identical(outFormat, "latex")
+latex <- ifelse(isLatex, '\\LaTeX\\', 'LaTeX')
+
+## specify global chunk options
+knitr::opts_chunk$set(fig.width = 5, fig.height = 4, dpi = 300,
+                      out.width = "90%", fig.align = "center")
+
+```
+
+
+# Introduction {#sec:intro}
+
+This report demonstates the approximation of the distribution function $N(0,1)$ 
+by the Monte Carlo methods.
+
+The rest of this report is organized as follows: In Section
+\@ref(sec:math), we lay out the formulae of the standard Normal distribution function 
+and the corresponding approximation by the Monte Carlo methods. Description of experiment 
+and implementation of R code are given in \@ref(sec:code). We present the experiment results 
+in Section \@ref(sec:table) and Section \@ref(sec:figure) using tables and figures respectively. 
+At last but not least, in Section \@ref(sec:summary), we summarize our findings with respect 
+to the experiment results.
+
+# Math Formulae {#sec:math}
+
+Consider approximation of the distribution function of $N(0,1)$,
+\begin{align}
+    \Phi(t) = \int_{-\infty}^{t} \frac{1}{\sqrt{2\pi}}e^{-y^2/2}dy,
+    (\#eq:df)
+\end{align}
+
+by the Monte Carlo methods:
+\begin{align}
+    \hat{\Phi}(t) = \frac{1}{n} \sum_{i=1}^{n} I(X_i \leq t),
+    (\#eq:mcdf)
+\end{align}
+
+where $X_i$'s are iid $N(0,1)$ variables.
+
+# Code Chunk {#sec:code}
+
+We plan to experiment with the approximation at $n \in \{10^2,10^3,10^4\}$ and 
+$t \in \{0.0,0.67,0.84,1.28,1.65,2.32,2.58,3.09,3.72\}$. Results of the approximated 
+values together with the true values are shown in Section \@ref(sec:table). 
+Further, we repeat the experiment 100 times and calculate the bias. Boxplots of the 
+bias at all $t$ are presented in Section \@ref(sec:figure).
+
+Here we lay out the R code chunk for calculation:
+
+```{r warning=FALSE, message=FALSE}
+n.values <- c(10^2, 10^3, 10^4)
+t.values <- c(0.0, 0.67, 0.84, 1.28, 1.65, 2.32, 2.58, 3.09, 3.72)
+
+set.seed(6218)
+MCDFNormal <- function(n, t){
+  sample <- rnorm(n)
+  return(sum(sample <= t)/n)
+}
+
+table <- matrix(nrow = length(t.values), ncol = 5)
+table[, 1] <- t.values
+for (i in 1:length(t.values)){
+  for (j in 1:length(n.values)){
+    table[i,j+1] <- MCDFNormal(n = n.values[j], t = t.values[i])
+  }
+  table[i,5] <- pnorm(t.values[i])
+}
+
+result <-data.frame(table)
+colnames(result) <- c("t", "n = 100", "n = 1000", "n = 10000", "true value")
+
+bias <- array(dim=c(length(t.values),length(n.values),100))
+for (i in 1:length(t.values)){
+  for (j in 1:length(n.values)){
+    for (k in 1:100){
+      bias[i, j, k] <- MCDFNormal(n = n.values[j], t = t.values[i]) - pnorm(t.values[i])
+    }
+  }
+}
+```
+
+
+# Table {#sec:table}
+
+Results of the approximated values at all combinations of $n$ and $t$ and the corresponding true values are shown in Table \@ref(tab:result).
+
+(ref:result) Approximated values and true values at different $n$ and $t$.
+
+```{r result}
+knitr::kable(result, booktabs = TRUE, digits = 4, 
+             caption = '(ref:result)')
+```
+
+From the table, we can conclude that for each $t$, as sample size $n$ increases, the apporximated value is more closed to the true value.
+
+# Figure {#sec:figure}
+
+We use boxplots to demonstrate the bias of repeating experiment 100 times at all $t$ in Figure \@ref(fig:bias).
+
+
+
+(ref:cap-boxplot) Boxplots of the bias at all $t$.
+
+```{r bias, echo = TRUE, fig.cap = "(ref:cap-boxplot)", fig.width = 8, fig.height = 8}
+par(mfrow=c(3,3))
+for (i in 1:length(t.values)){
+  boxplot(bias[i, 1,],bias[i, 2,],bias[i, 3,], xlab = paste("t =", t.values[i]),
+          names= c("n = 100", "n = 1000", "n = 10000"))
+}
+```
+
+From boxplots, we can see that for each $t$, as sample size $n$ increases, the bias becomes smaller and the range of the bias becomes narrower.
+
+
+# Summary and Discussion {#sec:summary}
+
+In summary, from Section \@ref(sec:math) and Section \@ref(sec:code) we can see that approximation of the 
+standard Normal distribution function by the Monte Carlo methods is easy to understand and calculate. 
+Combine the results from Section \@ref(sec:table) and Section \@ref(sec:figure), we conclude that at every 
+fixed value $t$, as sample size $n$ increases, the approximated value is more closed to the true value, and 
+the bias becomes smaller as well.
